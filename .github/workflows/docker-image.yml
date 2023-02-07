@@ -1,0 +1,47 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Docker login
+      env:
+        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      run: |
+        echo "Iniciando login"
+        docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
+        echo "fin del login"
+
+    - name: Git Semantic Version
+      uses: PaulHatch/semantic-version@v5.0.3
+      with:
+        major_pattern: "major:"
+        minor_pattern: "feat:"
+        version_format: "${major}.${minor}.${patch}-prerelease${increment}"
+      id: version
+      
+    - name: Build docker image
+      env:
+        NEW_VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        docker build -t thomrdev/docker-graphql-gha:$NEW_VERSION .
+        docker build -t thomrdev/docker-graphql-gha:latest .
+
+    - name: Push Docker Image
+      env:
+        NEW_VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        docker push thomrdev/docker-graphql-gha:$NEW_VERSION
+        docker push thomrdev/docker-graphql-gha:latest
